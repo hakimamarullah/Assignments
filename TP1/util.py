@@ -29,8 +29,7 @@ class IdMap:
 
     def __get_str(self, i):
         """Mengembalikan string yang terasosiasi dengan index i."""
-        # TODO
-        return ""
+        return list(self.str_to_id.keys())[list(self.str_to_id.values()).index(i)]
 
     def __get_id(self, s):
         """
@@ -38,7 +37,13 @@ class IdMap:
         Jika s tidak ada pada IdMap, lalu assign sebuah integer id baru dan kembalikan
         integer id baru tersebut.
         """
-        # TODO
+        try:
+            return self.str_to_id[s]
+        except KeyError:
+            new_index = max(self.id_to_str) + 1 if len(self.id_to_str) > 0 else 0
+            self.str_to_id[s] = new_index
+            self.id_to_str.append(new_index)
+            return new_index
         return 0
 
     def __getitem__(self, key):
@@ -79,8 +84,30 @@ def sorted_intersect(list1, list2):
     List[Comparable]
         intersection yang sudah terurut
     """
-    # TODO
-    return []
+    """
+    Manual without inbuilt function
+
+    pointer_1 = 0
+    pointer_2 = 0
+    result = []
+    while True:
+        try:
+            if (list1[pointer_1] == list2[pointer_2]):
+                result.append(list1[pointer_1])
+                pointer_1 += 1
+                pointer_2 += 1
+            elif list1[pointer_1] < list2[pointer_2]:
+                pointer_1 += 1
+            else:
+                pointer_2 += 1
+        except IndexError:
+            break
+    return result
+    """
+    
+    list1 = set(list1)
+    list2 = set(list2)
+    return sorted(list1 & list2)
 
 if __name__ == '__main__':
 
