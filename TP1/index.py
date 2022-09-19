@@ -1,5 +1,8 @@
+import io
 import pickle
 import os
+
+from io import BytesIO
 
 class InvertedIndex:
     """
@@ -119,8 +122,8 @@ class InvertedIndexReader(InvertedIndex):
         file index yang besar. Mengapa hanya sebagian kecil? karena agar muat
         diproses di memori. JANGAN MEMUAT SEMUA INDEX DI MEMORI!
         """
-        # TODO
-        return (None, [])
+        termId = next(self.terms)
+        return (termId, self.postings_dict[termId])
 
     def get_postings_list(self, term):
         """
@@ -131,8 +134,10 @@ class InvertedIndexReader(InvertedIndex):
         byte tertentu pada file (index file) dimana postings list dari
         term disimpan.
         """
-        # TODO
-        return []
+    
+        return self.postings_dict[term]
+
+
 
 class InvertedIndexWriter(InvertedIndex):
     """
@@ -173,8 +178,14 @@ class InvertedIndexWriter(InvertedIndex):
         postings_list: List[Int]
             List of docIDs dimana term muncul
         """
-        # TODO
-        return []
+        self.terms.append(term)
+        encoded_postings_list = self.postings_encoding.encode(postings_list)
+        start_position_in_index_file = self.index_file.tell()
+
+        self.index_file.seek(0, io.SEEK_END)
+        self.index_file.write(encoded_postings_list)
+        self.postings_dict[term] = (start_position_in_index_file, len(postings_list), len(encoded_postings_list))
+        return self.postings_dict
 
 if __name__ == "__main__":
 
@@ -187,9 +198,8 @@ if __name__ == "__main__":
         assert index.terms == [1,2], "terms salah"
         assert index.postings_dict == {1: (0, 5, len(StandardPostings.encode([2,3,4,8,10]))),
                                        2: (len(StandardPostings.encode([2,3,4,8,10])), 3,
-                                           len(StandardPostings.encode([3,4,5])))}, "postings dictionary salah"
+                                        len(StandardPostings.encode([3,4,5])))}, "postings dictionary salah"
         assert StandardPostings.decode(index.index_file.read()) == [2, 3, 4, 8, 10, 3, 4, 5], "penyimpanan postings pada harddisk salah"
-
         index.index_file.seek(index.postings_dict[2][0])
         assert StandardPostings.decode(index.index_file.read(len(StandardPostings.encode([3,4,5])))) == [3,4,5], "posisi postings salah"
 

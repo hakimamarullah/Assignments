@@ -44,7 +44,6 @@ class IdMap:
             self.str_to_id[s] = new_index
             self.id_to_str.append(new_index)
             return new_index
-        return 0
 
     def __getitem__(self, key):
         """

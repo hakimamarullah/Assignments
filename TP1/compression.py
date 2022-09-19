@@ -1,4 +1,5 @@
 import array
+import numbers
 
 class StandardPostings:
     """ 
@@ -115,8 +116,11 @@ class VBEPostings:
         bytes
             bytearray yang merepresentasikan urutan integer di postings_list
         """
-        # TODO
-        return None
+        numbers = []
+        for i in range(len(postings_list)-1, 0, -1):
+            numbers.insert(0, postings_list[i] - postings_list[i-1])
+        numbers.insert(0, postings_list[0])
+        return VBEPostings.vb_encode(numbers)
 
     @staticmethod
     def vb_decode(encoded_bytestream):
@@ -124,8 +128,17 @@ class VBEPostings:
         Decoding sebuah bytestream yang sebelumnya di-encode dengan
         variable-byte encoding.
         """
-        # TODO
-        return 0
+        numbers = []
+        n = 0
+        # print(encoded_bytestream)
+        for i in range(0, len(encoded_bytestream)):
+            if encoded_bytestream[i] < 128:
+                n = 128 * n + encoded_bytestream[i]
+            else:
+                n = 128 * n + (encoded_bytestream[i] - 128)
+                numbers.append(n)
+                n = 0
+        return numbers
 
     @staticmethod
     def decode(encoded_postings_list):
@@ -145,8 +158,11 @@ class VBEPostings:
         List[int]
             list of docIDs yang merupakan hasil decoding dari encoded_postings_list
         """
-        # TODO
-        return []
+        decoded_posting_list = VBEPostings.vb_decode(encoded_postings_list)
+
+        for i in range(1, len(decoded_posting_list)):
+            decoded_posting_list[i] = decoded_posting_list[i] + decoded_posting_list[i-1]
+        return decoded_posting_list
 
 if __name__ == '__main__':
     
