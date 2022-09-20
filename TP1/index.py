@@ -78,7 +78,7 @@ class InvertedIndex:
         with open(self.metadata_file_path, 'rb') as f:
             self.postings_dict, self.terms = pickle.load(f)
             self.term_iter = self.terms.__iter__()
-
+    
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
@@ -134,7 +134,6 @@ class InvertedIndexReader(InvertedIndex):
         byte tertentu pada file (index file) dimana postings list dari
         term disimpan.
         """
-    
         return self.postings_dict[term]
 
 
