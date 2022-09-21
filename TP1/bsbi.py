@@ -10,7 +10,11 @@ from compression import StandardPostings, VBEPostings
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from tqdm import tqdm
+"""
+Source:
+https://ristek.link/sourcecodebsbi
 
+"""
 class BSBIIndex:
     """
     Attributes
@@ -86,8 +90,23 @@ class BSBIIndex:
         termIDs dan docIDs. Dua variable ini harus persis untuk semua pemanggilan
         parse_block(...).
         """
-        # TODO
-        return []
+        stemmer = StemmerFactory().create_stemmer()
+        stop_word_remover = StopWordRemoverFactory().create_stop_word_remover()
+
+        td_pairs = []
+        dir_path = os.path.join(self.data_dir, block_dir_relative)
+
+        for doc_name in os.listdir(dir_path):
+            with open(os.path.join(dir_path, doc_name), 'r') as f:
+                for line in f.readlines():
+                    remove_stop_word = stop_word_remover.remove(line)
+                    stemmed = stemmer.stem(remove_stop_word)
+                    tokens = stemmed.split(' ')
+                    for token in tokens:
+                        term_id = self.term_id_map[token.strip()]
+                        doc_id = self.doc_id_map[os.path.join(block_dir_relative, doc_name)]
+                        td_pairs.append((term_id, doc_id))
+        return td_pairs
 
     def invert_write(self, td_pairs, index):
         """
@@ -133,7 +152,37 @@ class BSBIIndex:
             Instance InvertedIndexWriter object yang merupakan hasil merging dari
             semua intermediate InvertedIndexWriter objects.
         """
-        # TODO
+        last_term = ''
+        last_postings = []
+
+        for term_id, postings in heapq.merge(*indices, key = lambda x: self.term_id_map[x[0]]):
+            if term_id != last_term:
+                if last_term != '':
+                    merged_index.append(last_term, last_postings)
+                last_term = term_id
+                last_postings = postings
+            else:
+                i, j = 0, 0
+                new_postings = []
+                while i<len(postings) and j<len(last_postings):
+                    if postings[i]<last_postings[j]:
+                        new_postings.append(postings[i])
+                        i += 1
+                    elif postings[i]>last_postings[j]:
+                        new_postings.append(last_postings[j])
+                        j += 1
+                    else:
+                        new_postings.append(postings[i])
+                        i += 1
+                        j += 1
+                if i < len(postings):
+                    new_postings.extend(postings[i:len(postings)])
+                elif j < len(last_postings):
+                    new_postings.extend(postings[j:len(last_postings)])
+                last_postings = new_postings
+                del new_postings
+        if last_term:
+            merged_index.append(last_term, last_postings)
 
     def retrieve(self, query):
         """
@@ -158,8 +207,26 @@ class BSBIIndex:
 
         JANGAN LEMPAR ERROR/EXCEPTION untuk terms yang TIDAK ADA di collection.
         """
-        # TODO
-        return []
+        stop_word_cleanup = StopWordRemoverFactory().create_stop_word_remover().remove(query)
+        stemmed = StemmerFactory().create_stemmer().stem(stop_word_cleanup)
+
+        if len(self.term_id_map) == 0 or len(self.doc_id_map) == 0:
+            self.load()
+
+        query_list = [token.strip() for token in stemmed.split(' ')]
+        heap = []
+        with InvertedIndexReader(self.index_name, directory=self.output_dir, postings_encoding=
+                                 self.postings_encoding) as mapper:
+            for token in query_list:
+                postings = mapper[self.term_id_map[token]]
+                heapq.heappush(heap, (len(postings),postings))
+            while len(heap)>1:
+                list1 = heapq.heappop(heap)[1]
+                list2 = heapq.heappop(heap)[1]
+                tmp = sorted_intersect(list1, list2)
+                heapq.heappush(heap, (len(tmp), tmp))
+        result = [self.doc_id_map[doc_id] for doc_id in heap[0][1]]
+        return result
 
 
     def index(self):

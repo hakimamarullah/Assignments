@@ -96,8 +96,20 @@ class InvertedIndexReader(InvertedIndex):
     Class yang mengimplementasikan bagaimana caranya scan atau membaca secara
     efisien Inverted Index yang disimpan di sebuah file.
     """
+    def __enter__(self):
+        super().__enter__()
+        self._iterator_init()
+        return self
+    
+    def _iterator_init(self):
+        self.start = 0
+        self.end = len(self.postings_dict.keys())
+    
     def __iter__(self):
         return self
+    
+    def __getitem__(self, key):
+        return self.get_postings_list(key)
 
     def reset(self):
         """
@@ -122,8 +134,16 @@ class InvertedIndexReader(InvertedIndex):
         file index yang besar. Mengapa hanya sebagian kecil? karena agar muat
         diproses di memori. JANGAN MEMUAT SEMUA INDEX DI MEMORI!
         """
-        termId = next(self.terms)
-        return (termId, self.postings_dict[termId])
+        if self.start < self.end:
+            term_id = self.term_iter.__next__()
+            postings_start, postings_num, postings_bytes = self.postings_dict[term_id]
+            self.index_file.seek(0, 1)
+            encoded_postings = self.index_file.read(postings_bytes)
+            decoded_postings = self.postings_encoding.decode(encoded_postings)
+            self.start += 1
+            return (term_id, decoded_postings)
+        else:
+            raise StopIteration
 
     def get_postings_list(self, term):
         """
@@ -134,9 +154,11 @@ class InvertedIndexReader(InvertedIndex):
         byte tertentu pada file (index file) dimana postings list dari
         term disimpan.
         """
-        return self.postings_dict[term]
-
-
+        postings_start, postings_num, postings_bytes = self.postings_dict[term]
+        self.index_file.seek(postings_start, 0)
+        encoded_postings = self.index_file.read(postings_bytes)
+        return self.postings_encoding.decode(encoded_postings)
+        
 
 class InvertedIndexWriter(InvertedIndex):
     """
