@@ -3,6 +3,7 @@ import pickle
 import contextlib
 import heapq
 import time
+import nltk
 
 from index import InvertedIndexReader, InvertedIndexWriter
 from util import IdMap, sorted_intersect
@@ -99,11 +100,11 @@ class BSBIIndex:
         for doc_name in os.listdir(dir_path):
             with open(os.path.join(dir_path, doc_name), 'r') as f:
                 for line in f.readlines():
-                    remove_stop_word = stop_word_remover.remove(line)
-                    stemmed = stemmer.stem(remove_stop_word)
-                    tokens = stemmed.split(' ')
-                    for token in tokens:
-                        term_id = self.term_id_map[token.strip()]
+                    tokenize = nltk.word_tokenize(line)
+                    stemmed = stemmer.stem(" ".join(tokenize))
+                    stop_word_cleanup = stop_word_remover.remove(stemmed)
+                    for token in stop_word_cleanup:
+                        term_id = self.term_id_map[token]
                         doc_id = self.doc_id_map[os.path.join(block_dir_relative, doc_name)]
                         td_pairs.append((term_id, doc_id))
         return td_pairs
@@ -207,13 +208,15 @@ class BSBIIndex:
 
         JANGAN LEMPAR ERROR/EXCEPTION untuk terms yang TIDAK ADA di collection.
         """
-        stop_word_cleanup = StopWordRemoverFactory().create_stop_word_remover().remove(query)
-        stemmed = StemmerFactory().create_stemmer().stem(stop_word_cleanup)
+        tokenize = nltk.word_tokenize(query)
+        stemmed = StemmerFactory().create_stemmer().stem(" ".join(tokenize))
+        stop_word_cleanup = StopWordRemoverFactory().create_stop_word_remover().remove(stemmed)
+        
 
         if len(self.term_id_map) == 0 or len(self.doc_id_map) == 0:
             self.load()
 
-        query_list = [token.strip() for token in stemmed.split(' ')]
+        query_list = stop_word_cleanup
         heap = []
         with InvertedIndexReader(self.index_name, directory=self.output_dir, postings_encoding=
                                  self.postings_encoding) as mapper:
@@ -226,6 +229,7 @@ class BSBIIndex:
                 tmp = sorted_intersect(list1, list2)
                 heapq.heappush(heap, (len(tmp), tmp))
         result = [self.doc_id_map[doc_id] for doc_id in heap[0][1]]
+        print(len(result))
         return result
 
 
