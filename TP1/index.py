@@ -116,6 +116,7 @@ class InvertedIndexReader(InvertedIndex):
         Kembalikan file pointer ke awal, dan kembalikan pointer iterator
         term ke awal
         """
+        self._iterator_init()
         self.index_file.seek(0)
         self.term_iter = self.terms.__iter__() # reset term iterator
 
@@ -143,6 +144,7 @@ class InvertedIndexReader(InvertedIndex):
             self.start += 1
             return (term_id, decoded_postings)
         else:
+            self.reset()
             raise StopIteration
 
     def get_postings_list(self, term):
