@@ -1,3 +1,4 @@
+import Data.Char
 -- Soal 1
 lengths :: [a] -> Int
 lengths list = foldr (+) 0 (map (\_ -> 1) list)
@@ -26,4 +27,12 @@ reverse' xs = foldr (\x g y -> g (x:y)) id xs []
 
 -- Soal 7
 factors :: Int -> [Int]
+factors = tail . fact 1
+  where
+     fact s n | s > n-1 = []
+              | mod n s == 0 = s : fact (s+1) n
+              | otherwise = [] ++ fact (s+1) n
 
+-- Soal 8
+noUpperAndIdent :: String -> String
+noUpperAndIdent = filter (\x -> isLower x && x `elem` ['a'..'z'])
