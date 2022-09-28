@@ -17,7 +17,7 @@ multipleOf5 =  (length . filter (\x -> mod x 5 == 0))
 
 -- Soal 4
 total :: (Int -> Int) -> (Int -> Int)
-total f n= (sum . map f) [0..n]
+total f n = (sum . map f) [0..n]
 
 -- Soal 5
 reverse' :: [a] -> [a]
@@ -36,3 +36,7 @@ factors = tail . fact 1
 -- Soal 8
 noUpperAndIdent :: String -> String
 noUpperAndIdent = filter (\x -> isLower x && x `elem` ['a'..'z'])
+
+-- Soal 9
+encodeGaps :: Num a => [a] -> [a]
+encodeGaps p = 
