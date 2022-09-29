@@ -42,7 +42,7 @@ encodeGaps :: Num a => [a] -> [a]
 encodeGaps  xs = head xs : zipWith (flip(-)) xs (tail xs)
 
 decodeGaps :: Num a => [a] -> [a]
-decodeGaps xs = helper xs
+decodeGaps = helper
    where
     helper :: Num a => [a] -> [a]
     helper [] = []
