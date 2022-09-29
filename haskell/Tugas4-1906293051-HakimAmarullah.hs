@@ -39,4 +39,12 @@ noUpperAndIdent = filter (\x -> isLower x && x `elem` ['a'..'z'])
 
 -- Soal 9
 encodeGaps :: Num a => [a] -> [a]
-encodeGaps p = 
+encodeGaps  xs = head xs : zipWith (flip(-)) xs (tail xs)
+
+decodeGaps :: Num a => [a] -> [a]
+decodeGaps xs = helper xs
+   where
+    helper :: Num a => [a] -> [a]
+    helper [] = []
+    helper [x] = [x]
+    helper (x:xs) = x : helper ((head xs + x) : tail xs)
