@@ -216,12 +216,17 @@ class BSBIIndex:
         JANGAN LEMPAR ERROR/EXCEPTION untuk terms yang TIDAK ADA di collection.
 
         """
+        top_k = k
         stemmer = PorterStemmer()
         stopword_list = stopwords.words('english')
 
         tokenize = word_tokenize(query.translate(str.maketrans('','', string.punctuation)))
         tokens = [w.lower() for w in tokenize if not w.lower() in stopword_list]
-        tokens = list(map(lambda x: stemmer.stem(x), tokens))
+        query_terms = list(map(lambda x: stemmer.stem(x), tokens))
+
+       
+        with InvertedIndexReader(self.index_name, directory=self.output_dir, postings_encoding=self.postings_encoding) as inverted_index:
+           pass
         return []
 
     def index(self):

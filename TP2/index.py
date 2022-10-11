@@ -106,7 +106,8 @@ class InvertedIndexReader(InvertedIndex):
     """
     def __iter__(self):
         return self
-
+    def __getitem__(self, key):
+        return self.get_postings_list(key)
     def reset(self):
         """
         Kembalikan file pointer ke awal, dan kembalikan pointer iterator
