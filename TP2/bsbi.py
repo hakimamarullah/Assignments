@@ -4,6 +4,10 @@ import contextlib
 import heapq
 import time
 import math
+import string
+from nltk.stem import PorterStemmer
+from nltk.corpus import stopwords
+from nltk import word_tokenize
 
 from index import InvertedIndexReader, InvertedIndexWriter
 from util import IdMap, sorted_merge_posts_and_tfs
@@ -31,6 +35,7 @@ class BSBIIndex:
         self.index_name = index_name
         self.postings_encoding = postings_encoding
 
+        self.td_tf_pairs = []
         # Untuk menyimpan nama-nama file dari semua intermediate inverted index
         self.intermediate_indices = []
 
@@ -83,8 +88,25 @@ class BSBIIndex:
         termIDs dan docIDs. Dua variable ini harus 'persist' untuk semua pemanggilan
         parse_block(...).
         """
-        # TODO
-        return []
+        stemmer = PorterStemmer()
+        stopword_list = stopwords.words('english')
+
+        td_pairs = []
+        dir_path = os.path.join(self.data_dir, block_dir_relative)
+
+        for doc_name in os.listdir(dir_path):
+            with open(os.path.join(dir_path, doc_name), 'r') as f:
+                for line in f.readlines():
+                    tokenize = word_tokenize(line.translate(str.maketrans('','', string.punctuation)))
+                    tokens = [w.lower() for w in tokenize if not w.lower() in stopword_list]
+                    tokens = list(map(lambda x: stemmer.stem(x), tokens))
+                    for token in tokens:
+                        term_id = self.term_id_map[token]
+                        doc_id = self.doc_id_map[os.path.join(block_dir_relative, doc_name)]
+                        term_freq = tokens.count(token)
+                        td_pairs.append((term_id, doc_id))
+                        self.td_tf_pairs.append((term_id, doc_id, term_freq))
+        return td_pairs
 
     def invert_write(self, td_pairs, index):
         """
@@ -108,7 +130,21 @@ class BSBIIndex:
         index: InvertedIndexWriter
             Inverted index pada disk (file) yang terkait dengan suatu "block"
         """
-        # TODO
+        term_dict = {}
+        td_pairs = self.td_tf_pairs
+
+        for term_id, doc_id, term_freq in td_pairs:
+            if term_id not in term_dict:
+                term_dict[term_id] = set()
+            term_dict[term_id].add((doc_id, term_freq))
+        for term_id in sorted(term_dict.keys()):
+            temp = sorted(list(term_dict[term_id]), key=lambda x: x[0])
+            postings = []
+            tf_list = []
+            for doc_id, term_freq in temp:
+                postings.append(doc_id)
+                tf_list.append(term_freq)
+            index.append(term_id, postings, tf_list)
 
     def merge(self, indices, merged_index):
         """
@@ -180,7 +216,12 @@ class BSBIIndex:
         JANGAN LEMPAR ERROR/EXCEPTION untuk terms yang TIDAK ADA di collection.
 
         """
-        # TODO
+        stemmer = PorterStemmer()
+        stopword_list = stopwords.words('english')
+
+        tokenize = word_tokenize(query.translate(str.maketrans('','', string.punctuation)))
+        tokens = [w.lower() for w in tokenize if not w.lower() in stopword_list]
+        tokens = list(map(lambda x: stemmer.stem(x), tokens))
         return []
 
     def index(self):
