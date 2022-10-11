@@ -130,7 +130,6 @@ class VBEPostings:
         """
         numbers = []
         n = 0
-        # print(encoded_bytestream)
         for i in range(0, len(encoded_bytestream)):
             if encoded_bytestream[i] < 128:
                 n = 128 * n + encoded_bytestream[i]
