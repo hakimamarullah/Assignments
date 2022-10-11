@@ -1,6 +1,6 @@
 import pickle
 import os
-
+import io
 class InvertedIndex:
     """
     Class yang mengimplementasikan bagaimana caranya scan atau membaca secara
@@ -147,8 +147,16 @@ class InvertedIndexReader(InvertedIndex):
         byte tertentu pada file (index file) dimana postings list (dan juga
         list of TF) dari term disimpan.
         """
-        # TODO
-        return None
+        postings_start, postings_num, postings_bytes, tf_bytes = self.postings_dict[term]
+        self.index_file.seek(postings_start, 0)
+
+        encoded_postings = self.index_file.read(postings_bytes)
+
+        self.index_file.seek(postings_start + postings_bytes, 0)
+        encoded_tf = self.index_file.read(tf_bytes)
+        
+        return (self.postings_encoding.decode(encoded_postings),\
+            self.postings_encoding.decode_tf(encoded_tf))
 
 
 class InvertedIndexWriter(InvertedIndex):
@@ -196,8 +204,28 @@ class InvertedIndexWriter(InvertedIndex):
         tf_list: List[Int]
             List of term frequencies
         """
-        # TODO
-        return None
+        # Record doc length
+        for key, value in zip(postings_list, tf_list):
+            try:
+                self.doc_length[key] = self.doc_length[key] + value
+            except KeyError:
+                self.doc_length[key] = value
+        
+        self.terms.append(term)
+        encoded_postings_list = self.postings_encoding.encode(postings_list)
+        encoded_tf_list = self.postings_encoding.encode_tf(tf_list)
+
+        start_position_in_index_file = self.index_file.tell()
+
+        self.index_file.seek(0, io.SEEK_END)
+        self.index_file.write(encoded_postings_list)
+
+        self.index_file.seek(start_position_in_index_file + len(encoded_postings_list))
+        self.index_file.write(encoded_tf_list)
+
+        self.postings_dict[term] = (start_position_in_index_file, len(postings_list),\
+            len(encoded_postings_list), len(encoded_tf_list))
+        return self.postings_dict
 
 
 if __name__ == "__main__":
