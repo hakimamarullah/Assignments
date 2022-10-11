@@ -29,8 +29,7 @@ class IdMap:
 
     def __get_str(self, i):
         """Mengembalikan string yang terasosiasi dengan index i."""
-        # TODO
-        return ""
+        return list(self.str_to_id.keys())[list(self.str_to_id.values()).index(i)]
 
     def __get_id(self, s):
         """
@@ -38,8 +37,13 @@ class IdMap:
         Jika s tidak ada pada IdMap, lalu assign sebuah integer id baru dan kembalikan
         integer id baru tersebut.
         """
-        # TODO
-        return 0
+        try:
+            return self.str_to_id[s]
+        except KeyError:
+            new_index = max(self.id_to_str) + 1 if len(self.id_to_str) > 0 else 0
+            self.str_to_id[s] = new_index
+            self.id_to_str.append(new_index)
+            return new_index
 
     def __getitem__(self, key):
         """
@@ -85,8 +89,15 @@ def sorted_merge_posts_and_tfs(posts_tfs1, posts_tfs2):
     List[(Comparablem, int)]
         Penggabungan yang sudah terurut
     """
-    # TODO
-    return []
+    merged = {}
+    union = sorted(posts_tfs1 + posts_tfs2)
+    for key, value in union:
+        try:
+            merged[key] = merged[key] + value
+        except KeyError:
+            merged[key] = value
+
+    return [(k, v) for k, v in merged.items()]
 
 def test(output, expected):
     """ simple function for testing """
