@@ -29,7 +29,7 @@ class IdMap:
 
     def __get_str(self, i):
         """Mengembalikan string yang terasosiasi dengan index i."""
-        return list(self.str_to_id.keys())[list(self.str_to_id.values()).index(i)]
+        return self.id_to_str[i]
 
     def __get_id(self, s):
         """
@@ -37,13 +37,11 @@ class IdMap:
         Jika s tidak ada pada IdMap, lalu assign sebuah integer id baru dan kembalikan
         integer id baru tersebut.
         """
-        try:
-            return self.str_to_id[s]
-        except KeyError:
-            new_index = max(self.id_to_str) + 1 if len(self.id_to_str) > 0 else 0
-            self.str_to_id[s] = new_index
-            self.id_to_str.append(new_index)
-            return new_index
+        idx = self.str_to_id.get(s, len(self.id_to_str))
+        if s not in self.str_to_id.keys():
+            self.str_to_id[s] = idx
+            self.id_to_str.append(s)
+        return idx
 
     def __getitem__(self, key):
         """
@@ -90,7 +88,7 @@ def sorted_merge_posts_and_tfs(posts_tfs1, posts_tfs2):
         Penggabungan yang sudah terurut
     """
     merged = {}
-    union = sorted(posts_tfs1 + posts_tfs2)
+    union = sorted(posts_tfs1 + posts_tfs2, key=lambda x: x[0])
     for key, value in union:
         try:
             merged[key] = merged[key] + value
