@@ -1,6 +1,7 @@
 import re
 from bsbi import BSBIIndex
 from compression import VBEPostings
+import math
 
 ######## >>>>> 3 IR metrics: RBP p = 0.8, DCG, dan AP
 
@@ -46,8 +47,14 @@ def dcg(ranking):
       Float
         score DCG
   """
-  # TODO
-  return 0.0
+  scores = 0.
+  for i in range(1, len(ranking) + 1):
+    pos = i - 1
+    scores += ranking[pos] / math.log2(pos + 2)
+  return scores
+
+def precision(ranking):
+  return sum(ranking) / len(ranking)
 
 def ap(ranking):
   """ menghitung search effectiveness metric score dengan 
@@ -67,8 +74,12 @@ def ap(ranking):
       Float
         score AP
   """
-  # TODO
-  return 0.0
+  scores = 0.
+  R = sum(ranking)
+  for i in range(1, len(ranking) + 1):
+    pos = i - 1
+    scores += (precision(ranking[:i])) * ranking[pos]
+  return scores / R
 
 ######## >>>>> memuat qrels
 
@@ -116,9 +127,12 @@ def eval(qrels, query_file = "queries.txt", k = 1000):
       # HATI-HATI, doc id saat indexing bisa jadi berbeda dengan doc id
       # yang tertera di qrels
       ranking = []
-      for (score, doc) in BSBI_instance.retrieve_tfidf(query, k = k):
-          did = int(re.search(r'\/.*\/.*\/(.*)\.txt', doc).group(1))
-          ranking.append(qrels[qid][did])
+      try:
+        for (score, doc) in BSBI_instance.retrieve_tfidf(query, k = k):
+            did = int(re.search(r'\/.*\/.*\/(.*)\.txt', doc).group(1))
+            ranking.append(qrels[qid][did])
+      except KeyError:
+        continue
       rbp_scores.append(rbp(ranking))
       dcg_scores.append(dcg(ranking))
       ap_scores.append(ap(ranking))

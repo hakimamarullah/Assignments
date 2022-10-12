@@ -1,3 +1,4 @@
+from operator import invert
 import os
 import pickle
 import contextlib
@@ -5,7 +6,7 @@ import heapq
 import time
 import math
 import string
-from nltk.stem import PorterStemmer
+from nltk.stem import PorterStemmer, SnowballStemmer
 from nltk.corpus import stopwords
 from nltk import word_tokenize
 
@@ -13,6 +14,20 @@ from index import InvertedIndexReader, InvertedIndexWriter
 from util import IdMap, sorted_merge_posts_and_tfs
 from compression import StandardPostings, VBEPostings
 from tqdm import tqdm
+
+class Cleaner:
+    stemmer = SnowballStemmer("english")
+    stop_words = stopwords.words('english')
+
+    @staticmethod
+    def clean_and_tokenize(uncleaned_sentence):
+        tokenized_words = word_tokenize(uncleaned_sentence)
+        stemmed = [Cleaner.stemmer.stem(word) for word in tokenized_words]
+        cleaned_tokens = []
+        for token in stemmed:
+            if (token not in Cleaner.stop_words) and (token not in string.punctuation):
+                cleaned_tokens.append(token)
+        return cleaned_tokens
 
 class BSBIIndex:
     """
@@ -88,21 +103,21 @@ class BSBIIndex:
         termIDs dan docIDs. Dua variable ini harus 'persist' untuk semua pemanggilan
         parse_block(...).
         """
-        stemmer = PorterStemmer()
+        stemmer = SnowballStemmer(language='english', ignore_stopwords=True)
         stopword_list = stopwords.words('english')
 
         td_pairs = []
         dir_path = os.path.join(self.data_dir, block_dir_relative)
 
-        for doc_name in os.listdir(dir_path):
+        for doc_name in next(os.walk(dir_path))[2]:
+            doc_path = f'./{os.path.join(dir_path, doc_name)}'
+            doc_path = doc_path.replace('\\', '/')
+            doc_id = self.doc_id_map[doc_path]
             with open(os.path.join(dir_path, doc_name), 'r') as f:
                 for line in f.readlines():
-                    tokenize = word_tokenize(line.translate(str.maketrans('','', string.punctuation)))
-                    tokens = [w.lower() for w in tokenize if not w.lower() in stopword_list]
-                    tokens = list(map(lambda x: stemmer.stem(x), tokens))
+                    tokens = Cleaner.clean_and_tokenize(line)
                     for token in tokens:
                         term_id = self.term_id_map[token]
-                        doc_id = self.doc_id_map[os.path.join(block_dir_relative, doc_name)]
                         term_freq = tokens.count(token)
                         td_pairs.append((term_id, doc_id))
                         self.td_tf_pairs.append((term_id, doc_id, term_freq))
@@ -216,6 +231,7 @@ class BSBIIndex:
         JANGAN LEMPAR ERROR/EXCEPTION untuk terms yang TIDAK ADA di collection.
 
         """
+        self.load()
         top_k = k
         stemmer = PorterStemmer()
         stopword_list = stopwords.words('english')
@@ -223,11 +239,27 @@ class BSBIIndex:
         tokenize = word_tokenize(query.translate(str.maketrans('','', string.punctuation)))
         tokens = [w.lower() for w in tokenize if not w.lower() in stopword_list]
         query_terms = list(map(lambda x: stemmer.stem(x), tokens))
+        terms_id = [self.term_id_map[term] for term in query_terms]
 
-       
-        with InvertedIndexReader(self.index_name, directory=self.output_dir, postings_encoding=self.postings_encoding) as inverted_index:
-           pass
-        return []
+        data_postings_tf = []
+        scores = []
+        with InvertedIndexReader(self.index_name, directory=self.output_dir,\
+            postings_encoding=self.postings_encoding) as inverted_index:
+            N = len(inverted_index.doc_length)
+            for term_id in terms_id:
+                data_postings_tf.append(inverted_index[term_id])
+            
+            for item in data_postings_tf:
+                wtq = math.log(N / len(item[0]))
+                score = 0.
+                for i in range(0, len(item[0])):
+                    score = wtq * (1 + math.log10(item[1][i]))
+                    scores.append((score, self.doc_id_map[item[0][i]]))
+                    score = 0.
+                wtq = 0.
+                score = 0.
+        scores = sorted(scores, key=lambda x : x[0], reverse=True)[:k]
+        return scores
 
     def index(self):
         """
