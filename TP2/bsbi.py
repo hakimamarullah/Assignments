@@ -49,6 +49,8 @@ class BSBIIndex:
         self.output_dir = output_dir
         self.index_name = index_name
         self.postings_encoding = postings_encoding
+        self.doc_length = dict()
+        self.average_doc_length = -1
 
         self.td_tf_pairs = []
         # Untuk menyimpan nama-nama file dari semua intermediate inverted index
@@ -69,6 +71,10 @@ class BSBIIndex:
             self.term_id_map = pickle.load(f)
         with open(os.path.join(self.output_dir, 'docs.dict'), 'rb') as f:
             self.doc_id_map = pickle.load(f)
+        
+        with InvertedIndexReader(self.index_name, self.postings_encoding, self.output_dir) as merged_index:
+            self.doc_length = merged_index.doc_length
+            self.average_doc_length = merged_index.average_doc_length
 
     def parse_block(self, block_dir_relative):
         """
@@ -194,6 +200,17 @@ class BSBIIndex:
                 merged_index.append(curr, postings, tf_list)
                 curr, postings, tf_list = t, postings_, tf_list_
         merged_index.append(curr, postings, tf_list)
+    
+    def queries_term(self, query):
+        stemmer = PorterStemmer()
+        stopword_list = stopwords.words('english')
+
+        tokenize = word_tokenize(query.translate(str.maketrans('','', string.punctuation)))
+        tokens = [w.lower() for w in tokenize if not w.lower() in stopword_list]
+        query_terms = list(map(lambda x: stemmer.stem(x), tokens))
+        terms_id = [self.term_id_map[term] for term in query_terms]
+
+        return terms_id
 
     def retrieve_tfidf(self, query, k = 10):
         """
@@ -232,20 +249,13 @@ class BSBIIndex:
 
         """
         self.load()
-        top_k = k
-        stemmer = PorterStemmer()
-        stopword_list = stopwords.words('english')
-
-        tokenize = word_tokenize(query.translate(str.maketrans('','', string.punctuation)))
-        tokens = [w.lower() for w in tokenize if not w.lower() in stopword_list]
-        query_terms = list(map(lambda x: stemmer.stem(x), tokens))
-        terms_id = [self.term_id_map[term] for term in query_terms]
+        terms_id = self.queries_term(query)
 
         data_postings_tf = []
         scores = []
         with InvertedIndexReader(self.index_name, directory=self.output_dir,\
             postings_encoding=self.postings_encoding) as inverted_index:
-            N = len(inverted_index.doc_length)
+            N = len(self.doc_length)
             for term_id in terms_id:
                 data_postings_tf.append(inverted_index[term_id])
             
@@ -256,6 +266,31 @@ class BSBIIndex:
                     score = wtq * (1 + math.log10(item[1][i]))
                     scores.append((score, self.doc_id_map[item[0][i]]))
                     score = 0.
+                wtq = 0.
+                score = 0.
+        scores = sorted(scores, key=lambda x : x[0], reverse=True)[:k]
+        return scores
+    
+    def retrieve_okapibm25(self, query, k1=1.6, b=0.75, k = 10):
+        self.load()
+        terms_id = self.queries_term(query)
+        data_postings_tf = []
+        scores = []
+        with InvertedIndexReader(self.index_name, directory=self.output_dir,\
+            postings_encoding=self.postings_encoding) as inverted_index:
+            N = len(self.doc_length)
+            for term_id in terms_id:
+                data_postings_tf.append(inverted_index[term_id])
+            
+            for item in data_postings_tf:
+                wtq = math.log(N / len(item[0]))
+                score = 0.
+                for i in range(0, len(item[0])):
+                    wtd = ((k1 + 1) * item[1][i]) / (k1 * ((1 - b) + b * self.doc_length[item[0][i]]/ self.average_doc_length) + item[1][i])
+                    score = wtq * wtd
+                    scores.append((score, self.doc_id_map[item[0][i]]))
+                    score = 0.
+                    wtd = 0.
                 wtq = 0.
                 score = 0.
         scores = sorted(scores, key=lambda x : x[0], reverse=True)[:k]

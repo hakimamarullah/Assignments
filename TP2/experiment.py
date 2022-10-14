@@ -1,9 +1,13 @@
 import re
+from typing import final
 from bsbi import BSBIIndex
 from compression import VBEPostings
 import math
 
 ######## >>>>> 3 IR metrics: RBP p = 0.8, DCG, dan AP
+class Constant:
+  TFIDF = 'TF-IDF'
+  OKAPIBM25 = 'OKAPIBM25'
 
 def rbp(ranking, p = 0.8):
   """ menghitung search effectiveness metric score dengan 
@@ -105,7 +109,7 @@ def load_qrels(qrel_file = "qrels.txt", max_q_id = 30, max_doc_id = 1033):
 
 ######## >>>>> EVALUASI !
 
-def eval(qrels, query_file = "queries.txt", k = 1000):
+def eval(qrels, query_file = "queries.txt",k1=1.6, b=0.75, scoring= Constant.TFIDF, k = 1000):
   """ 
     loop ke semua 30 query, hitung score di setiap query,
     lalu hitung MEAN SCORE over those 30 queries.
@@ -128,19 +132,28 @@ def eval(qrels, query_file = "queries.txt", k = 1000):
       # yang tertera di qrels
       ranking = []
       try:
-        for (score, doc) in BSBI_instance.retrieve_tfidf(query, k = k):
-            did = int(re.search(r'\/.*\/.*\/(.*)\.txt', doc).group(1))
-            ranking.append(qrels[qid][did])
+        if scoring == Constant.TFIDF:
+          for (score, doc) in BSBI_instance.retrieve_tfidf(query, k = k):
+              did = int(re.search(r'\/.*\/.*\/(.*)\.txt', doc).group(1))
+              ranking.append(qrels[qid][did])
+        elif scoring == Constant.OKAPIBM25:
+          for (score, doc) in BSBI_instance.retrieve_okapibm25(query, k1= k1, b=b, k = k):
+              did = int(re.search(r'\/.*\/.*\/(.*)\.txt', doc).group(1))
+              ranking.append(qrels[qid][did])
       except KeyError:
         continue
       rbp_scores.append(rbp(ranking))
       dcg_scores.append(dcg(ranking))
       ap_scores.append(ap(ranking))
 
-  print("Hasil evaluasi TF-IDF terhadap 30 queries")
-  print("RBP score =", sum(rbp_scores) / len(rbp_scores))
-  print("DCG score =", sum(dcg_scores) / len(dcg_scores))
-  print("AP score  =", sum(ap_scores) / len(ap_scores))
+  print(f'Hasil evaluasi {scoring} terhadap 30 queries')
+  if scoring == Constant.OKAPIBM25:  print(f'k1= {k1}; b={b}')
+  print("RBP score =", round(sum(rbp_scores) / len(rbp_scores),4))
+  print("DCG score =", round(sum(dcg_scores) / len(dcg_scores),4))
+  print("AP score  =", round(sum(ap_scores) / len(ap_scores),4))
+  print()
+  print("="*45)
+  print()
 
 if __name__ == '__main__':
   qrels = load_qrels()
@@ -148,4 +161,14 @@ if __name__ == '__main__':
   assert qrels["Q1"][166] == 1, "qrels salah"
   assert qrels["Q1"][300] == 0, "qrels salah"
 
-  eval(qrels)
+  eval(qrels, scoring=Constant.TFIDF)
+  eval(qrels, k1=1.3, scoring=Constant.OKAPIBM25)
+  eval(qrels, k1=1.5, scoring=Constant.OKAPIBM25)
+  eval(qrels, k1=1.7, scoring=Constant.OKAPIBM25)
+  eval(qrels, k1=1.8, scoring=Constant.OKAPIBM25)
+  eval(qrels, k1=2, scoring=Constant.OKAPIBM25)
+  eval(qrels, k1=1.3, b=0.5, scoring=Constant.OKAPIBM25)
+  eval(qrels, k1=1.5, b=0.5, scoring=Constant.OKAPIBM25)
+  eval(qrels, k1=1.7, b=0.5, scoring=Constant.OKAPIBM25)
+  eval(qrels, k1=1.8, b=0.5, scoring=Constant.OKAPIBM25)
+  eval(qrels, k1=2, b=0.5, scoring=Constant.OKAPIBM25)
