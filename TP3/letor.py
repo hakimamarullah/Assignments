@@ -24,12 +24,6 @@ def prepare_data():
         tarobj.extractall() 
    
     print("All files downloaded...")
-    # proc = subprocess.Popen(
-    #     "wget -c https://www.cl.uni-heidelberg.de/statnlpgroup/nfcorpus/nfcorpus.tar.gz -P data".split())
-    # proc.wait()
-    # print("Extracting corpus...", "green")
-    # proc = subprocess.Popen("tar -xvf data/nfcorpus.tar.gz".split())
-    # proc.wait()
 
 
 class CorpusDocuments(object):
@@ -54,7 +48,7 @@ class CorpusQuery(object):
         print(f"Generating corpus queries for {path}")
         self.queries = dict()
         try:
-            with open(path) as file:
+            with open(path, encoding='utf-8') as file:
                 for line in file:
                     q_id, content = line.split("\t")
                     self.queries[q_id] = content.split()
@@ -206,7 +200,7 @@ def main():
     model.train_model()
     scores = model.predict(docs, query)
 
-    model.interpret_serp_ranking(scores)
+    model.interpret_serp_ranking(docs, query, scores)
 
 if __name__ == '__main__':
     main()
